@@ -31,6 +31,8 @@ public class Main {
       return inputLine.chars().anyMatch(Character::isDigit);
     } else if (pattern.equals("\\w")) {
       return inputLine.chars().anyMatch(ch -> Character.isLetterOrDigit(ch) || ch == '_');
+    } else if(pattern.startsWith("[") && pattern.endsWith("]") && pattern.length() > 2) {
+      return inputLine.chars().anyMatch(ch -> pattern.substring(1, pattern.length() - 1).indexOf(ch) >= 0);
     } else {
       throw new RuntimeException("Unhandled pattern: " + pattern);
     }
