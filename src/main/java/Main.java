@@ -1,5 +1,10 @@
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
+import java.util.function.Predicate;
 
 public class Main {
   public static void main(String[] args){
@@ -23,26 +28,78 @@ public class Main {
         System.exit(1);
     }
   }
-
-  public static boolean matchPattern(String inputLine, String pattern) {
-    if (pattern.length() == 1) {
-      return inputLine.contains(pattern);
-    } else if (pattern.equals("\\d")) {
-      return inputLine.chars().anyMatch(Character::isDigit);
-    } else if (pattern.equals("\\w")) {
-      return inputLine.chars().anyMatch(ch -> Character.isLetterOrDigit(ch) || ch == '_');
-    }else if (pattern.startsWith("[") && pattern.endsWith("]") && pattern.length() > 2) {
-    if (pattern.charAt(1) == '^') {
-        // At least one char not in the forbidden set
-        String forbidden = pattern.substring(2, pattern.length() - 1);
-        return inputLine.chars().anyMatch(ch -> forbidden.indexOf(ch) < 0);
+ private static final Map<String, Predicate<Character>> PATTERN_MAP = new HashMap<>();
+ static {
+        PATTERN_MAP.put("\\d", Character::isDigit);
+        PATTERN_MAP.put("\\w", ch -> Character.isLetterOrDigit(ch) || ch == '_');
+        PATTERN_MAP.put("\\s", Character::isWhitespace);
+        PATTERN_MAP.put(".", ch -> true); // matches any character
     }
-    // Normal character class
-    String allowed = pattern.substring(1, pattern.length() - 1);
-    return inputLine.chars().anyMatch(ch -> allowed.indexOf(ch) >= 0);
-} else {
-      throw new RuntimeException("Unhandled pattern: " + pattern);
+ public static String[] splitPattern(String pattern) {
+        List<String> tokens = new ArrayList<>();
+        int i = 0;
+        
+        while (i < pattern.length()) {
+            if (pattern.charAt(i) == '\\' && i + 1 < pattern.length()) {
+                // Escape sequence like \d, \w
+                tokens.add(pattern.substring(i, i + 2));
+                i += 2;
+            } else if (pattern.charAt(i) == '[') {
+                // Character class like [abc]
+                int end = pattern.indexOf(']', i + 1);
+                tokens.add(pattern.substring(i, end + 1));
+                i = end + 1;
+            } else {
+                // Regular character
+                tokens.add(String.valueOf(pattern.charAt(i)));
+                i++;
+            }
+        }
+        
+        return tokens.toArray(new String[0]);
     }
-  }
-  
+     public static boolean matchesToken(char ch, String token) {
+        // Check if it's a known pattern
+        if (PATTERN_MAP.containsKey(token)) {
+            return PATTERN_MAP.get(token).test(ch);
+        }
+        
+        // Handle character classes [abc] or [^abc]
+        if (token.startsWith("[") && token.endsWith("]")) {
+            if (token.charAt(1) == '^') {
+                // Negated class [^abc]
+                String forbidden = token.substring(2, token.length() - 1);
+                return forbidden.indexOf(ch) < 0;
+            } else {
+                // Normal class [abc]
+                String allowed = token.substring(1, token.length() - 1);
+                return allowed.indexOf(ch) >= 0;
+            }
+        }
+        
+        // Literal character
+        return ch == token.charAt(0);
+    }
+   public static boolean matchPattern(String input, String pattern) {
+        String[] tokens = splitPattern(pattern);
+        
+        // Try matching at every position in the input
+        for (int start = 0; start <= input.length() - tokens.length; start++) {
+            boolean matches = true;
+            
+            for (int i = 0; i < tokens.length; i++) {
+                if (!matchesToken(input.charAt(start + i), tokens[i])) {
+                    matches = false;
+                    break;
+                }
+            }
+            
+            if (matches) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
 }
