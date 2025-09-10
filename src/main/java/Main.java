@@ -31,12 +31,16 @@ public class Main {
       return inputLine.chars().anyMatch(Character::isDigit);
     } else if (pattern.equals("\\w")) {
       return inputLine.chars().anyMatch(ch -> Character.isLetterOrDigit(ch) || ch == '_');
-    } else if(pattern.startsWith("[") && pattern.endsWith("]") && pattern.length() > 2) {
-      if (pattern.charAt(1) == '^') {
-        return inputLine.chars().anyMatch(ch -> pattern.substring(2, pattern.length() - 1).indexOf(ch) >= 0);
-      }
-      return inputLine.chars().anyMatch(ch -> pattern.substring(1, pattern.length() - 1).indexOf(ch) >= 0);
-    } else {
+    }else if (pattern.startsWith("[") && pattern.endsWith("]") && pattern.length() > 2) {
+    if (pattern.charAt(1) == '^') {
+        // At least one char not in the forbidden set
+        String forbidden = pattern.substring(2, pattern.length() - 1);
+        return inputLine.chars().anyMatch(ch -> forbidden.indexOf(ch) < 0);
+    }
+    // Normal character class
+    String allowed = pattern.substring(1, pattern.length() - 1);
+    return inputLine.chars().anyMatch(ch -> allowed.indexOf(ch) >= 0);
+} else {
       throw new RuntimeException("Unhandled pattern: " + pattern);
     }
   }
