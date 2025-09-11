@@ -92,6 +92,10 @@ public class Main {
                 return false;
             }
         }
+        if(tokens[tokens.length - 1].equals("$") && input.length() != tokens.length - 1) {
+            return false;
+        }
+        
         return true;
     }
         // Try matching at every position in the input
