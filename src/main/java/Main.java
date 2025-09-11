@@ -35,6 +35,7 @@ public class Main {
         PATTERN_MAP.put("\\s", Character::isWhitespace);
         PATTERN_MAP.put(".", ch -> true); // matches any character
         PATTERN_MAP.put("^", ch -> false); // matches start of line, handled separately
+        PATTERN_MAP.put("$", ch -> false); // matches end of line, handled separately
     }
  public static String[] splitPattern(String pattern) {
         List<String> tokens = new ArrayList<>();
