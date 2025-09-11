@@ -77,8 +77,8 @@ public class Main {
             }
         }
         if (token.startsWith("^") && token.length()>2){
-            String matcher=token.substring(2,token.length()-1);
-            return matcher.chars().anyMatch(c -> c  == token.charAt(0));
+           String expected=token.substring(1);
+           return token.startsWith(expected);
         }
         // Literal character
         return ch == token.charAt(0);
