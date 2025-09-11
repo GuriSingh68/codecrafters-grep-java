@@ -76,7 +76,10 @@ public class Main {
                 return allowed.indexOf(ch) >= 0;
             }
         }
-        
+        if (token.startsWith("^") && token.length()>2){
+            String matcher=token.substring(2,token.length()-1);
+            return matcher.chars().anyMatch(c -> c  == token.charAt(0));
+        }
         // Literal character
         return ch == token.charAt(0);
     }
