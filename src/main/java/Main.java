@@ -34,6 +34,7 @@ public class Main {
         PATTERN_MAP.put("\\w", ch -> Character.isLetterOrDigit(ch) || ch == '_');
         PATTERN_MAP.put("\\s", Character::isWhitespace);
         PATTERN_MAP.put(".", ch -> true); // matches any character
+        PATTERN_MAP.put("^", ch -> false); // matches start of line, handled separately
     }
  public static String[] splitPattern(String pattern) {
         List<String> tokens = new ArrayList<>();
@@ -76,18 +77,22 @@ public class Main {
                 return allowed.indexOf(ch) >= 0;
             }
         }
-        if (token.startsWith("^") && token.length()>1){
-           String expected=token.substring(1);
-           System.out.println(expected);
-           System.out.println(token.startsWith(expected));
-           return token.startsWith(expected);
-        }
         // Literal character
         return ch == token.charAt(0);
     }
    public static boolean matchPattern(String input, String pattern) {
         String[] tokens = splitPattern(pattern);
-        
+         if (tokens.length > 0 && tokens[0].equals("^")) {
+        if (input.length() < tokens.length - 1) {
+            return false;
+        }
+        for (int i = 1; i < tokens.length; i++) {
+            if (!matchesToken(input.charAt(i - 1), tokens[i])) {
+                return false;
+            }
+        }
+        return true;
+    }
         // Try matching at every position in the input
         for (int start = 0; start <= input.length() - tokens.length; start++) {
             boolean matches = true;
