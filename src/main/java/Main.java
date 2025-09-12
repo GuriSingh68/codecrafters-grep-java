@@ -40,10 +40,12 @@ public class Main {
     static class PatternToken {
         String token;
         boolean hasPlus;
-        
-        PatternToken(String token, boolean hasPlus) {
+        boolean hasQuestion; // Add this for ? quantifier
+
+        PatternToken(String token, boolean hasPlus, boolean hasQuestion) {
             this.token = token;
             this.hasPlus = hasPlus;
+            this.hasQuestion = hasQuestion;
         }
     }
     
@@ -77,12 +79,16 @@ public class Main {
             
             // Check for + quantifier
             boolean hasPlus = false;
+            boolean hasQuestion = false; // Add this for ? quantifier
             if (i < pattern.length() && pattern.charAt(i) == '+') {
                 hasPlus = true;
                 i++;
+            } else if (i < pattern.length() && pattern.charAt(i) == '?') {
+                hasQuestion = true;
+                i++;
             }
-            
-            tokens.add(new PatternToken(currentToken, hasPlus));
+
+            tokens.add(new PatternToken(currentToken, hasPlus, hasQuestion));
         }
         
         return tokens.toArray(new PatternToken[0]);
@@ -231,6 +237,17 @@ public class Main {
             }
             
             return false;
+        } else if (currentToken.hasQuestion) {
+            // Handle ? quantifier (zero or one)
+            // Try matching the token once
+            if (inputPos < input.length() && matchesToken(input.charAt(inputPos), currentToken.token)) {
+                // If it matches, try the rest of the pattern
+                if (matchTokensAtPosition(input, inputPos + 1, patternTokens, patternPos + 1, requiredEndPos)) {
+                    return true;
+                }
+            }
+            // If it doesn't match or we skip it, try the rest of the pattern
+            return matchTokensAtPosition(input, inputPos, patternTokens, patternPos + 1, requiredEndPos);
         } else {
             // Regular token (no quantifier)
             if (inputPos >= input.length() || !matchesToken(input.charAt(inputPos), currentToken.token)) {
