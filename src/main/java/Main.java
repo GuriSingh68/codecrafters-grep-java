@@ -36,34 +36,56 @@ public class Main {
         PATTERN_MAP.put(".", ch -> true); // matches any character
     }
     
-    public static String[] splitPattern(String pattern) {
-        List<String> tokens = new ArrayList<>();
+    // Class to represent a pattern token with optional quantifier
+    static class PatternToken {
+        String token;
+        boolean hasPlus;
+        
+        PatternToken(String token, boolean hasPlus) {
+            this.token = token;
+            this.hasPlus = hasPlus;
+        }
+    }
+    
+    public static PatternToken[] splitPattern(String pattern) {
+        List<PatternToken> tokens = new ArrayList<>();
         int i = 0;
         
         while (i < pattern.length()) {
+            String currentToken;
+            
             if (pattern.charAt(i) == '\\' && i + 1 < pattern.length()) {
                 // Escape sequence like \d, \w
-                tokens.add(pattern.substring(i, i + 2));
+                currentToken = pattern.substring(i, i + 2);
                 i += 2;
             } else if (pattern.charAt(i) == '[') {
                 // Character class like [abc]
                 int end = pattern.indexOf(']', i + 1);
                 if (end == -1) {
                     // Malformed character class, treat as literal
-                    tokens.add(String.valueOf(pattern.charAt(i)));
+                    currentToken = String.valueOf(pattern.charAt(i));
                     i++;
                 } else {
-                    tokens.add(pattern.substring(i, end + 1));
+                    currentToken = pattern.substring(i, end + 1);
                     i = end + 1;
                 }
             } else {
                 // Regular character (including ^ and $)
-                tokens.add(String.valueOf(pattern.charAt(i)));
+                currentToken = String.valueOf(pattern.charAt(i));
                 i++;
             }
+            
+            // Check for + quantifier
+            boolean hasPlus = false;
+            if (i < pattern.length() && pattern.charAt(i) == '+') {
+                hasPlus = true;
+                i++;
+            }
+            
+            tokens.add(new PatternToken(currentToken, hasPlus));
         }
         
-        return tokens.toArray(new String[0]);
+        return tokens.toArray(new PatternToken[0]);
     }
     
     public static boolean matchesToken(char ch, String token) {
@@ -98,14 +120,14 @@ public class Main {
             return true; // Empty pattern matches everything
         }
         
-        String[] tokens = splitPattern(pattern);
+        PatternToken[] tokens = splitPattern(pattern);
         if (tokens.length == 0) {
             return true;
         }
         
         // Determine anchor types
-        boolean startAnchor = tokens.length > 0 && tokens[0].equals("^");
-        boolean endAnchor = tokens.length > 0 && tokens[tokens.length - 1].equals("$");
+        boolean startAnchor = tokens.length > 0 && tokens[0].token.equals("^");
+        boolean endAnchor = tokens.length > 0 && tokens[tokens.length - 1].token.equals("$");
         
         // Extract the actual pattern tokens (without anchors)
         int startIdx = startAnchor ? 1 : 0;
@@ -121,7 +143,7 @@ public class Main {
             return true;
         }
         
-        String[] patternTokens = new String[endIdx - startIdx];
+        PatternToken[] patternTokens = new PatternToken[endIdx - startIdx];
         System.arraycopy(tokens, startIdx, patternTokens, 0, patternTokens.length);
         
         // Handle different anchor combinations
@@ -140,67 +162,82 @@ public class Main {
         }
     }
     
-    private static boolean matchExact(String input, String[] patternTokens) {
-        if (input.length() != patternTokens.length) {
-            return false;
-        }
-        
-        for (int i = 0; i < patternTokens.length; i++) {
-            if (!matchesToken(input.charAt(i), patternTokens[i])) {
-                return false;
-            }
-        }
-        return true;
+    private static boolean matchExact(String input, PatternToken[] patternTokens) {
+        return matchTokensAtPosition(input, 0, patternTokens, 0, input.length());
     }
     
-    private static boolean matchFromStart(String input, String[] patternTokens) {
-        if (input.length() < patternTokens.length) {
-            return false;
-        }
-        
-        for (int i = 0; i < patternTokens.length; i++) {
-            if (!matchesToken(input.charAt(i), patternTokens[i])) {
-                return false;
-            }
-        }
-        return true;
+    private static boolean matchFromStart(String input, PatternToken[] patternTokens) {
+        return matchTokensAtPosition(input, 0, patternTokens, 0, -1);
     }
     
-    private static boolean matchAtEnd(String input, String[] patternTokens) {
-        if (input.length() < patternTokens.length) {
-            return false;
-        }
-        
-        int startPos = input.length() - patternTokens.length;
-        for (int i = 0; i < patternTokens.length; i++) {
-            if (!matchesToken(input.charAt(startPos + i), patternTokens[i])) {
-                return false;
+    private static boolean matchAtEnd(String input, PatternToken[] patternTokens) {
+        // Try to match backwards from the end
+        for (int start = input.length(); start >= 0; start--) {
+            if (matchTokensAtPosition(input, start, patternTokens, 0, input.length())) {
+                return true;
             }
         }
-        return true;
+        return false;
     }
     
-    private static boolean matchAnywhere(String input, String[] patternTokens) {
+    private static boolean matchAnywhere(String input, PatternToken[] patternTokens) {
         if (patternTokens.length == 0) {
             return true;
         }
         
         // Try matching at every possible position
-        for (int start = 0; start <= input.length() - patternTokens.length; start++) {
-            boolean matches = true;
-            
-            for (int i = 0; i < patternTokens.length; i++) {
-                if (!matchesToken(input.charAt(start + i), patternTokens[i])) {
-                    matches = false;
-                    break;
-                }
-            }
-            
-            if (matches) {
+        for (int start = 0; start <= input.length(); start++) {
+            if (matchTokensAtPosition(input, start, patternTokens, 0, -1)) {
                 return true;
             }
         }
         
         return false;
+    }
+    
+    // Core matching function that handles quantifiers
+    private static boolean matchTokensAtPosition(String input, int inputPos, PatternToken[] patternTokens, int patternPos, int requiredEndPos) {
+        // Base case: we've matched all pattern tokens
+        if (patternPos >= patternTokens.length) {
+            // If we require exact match to end, check position
+            return requiredEndPos == -1 || inputPos == requiredEndPos;
+        }
+        
+        PatternToken currentToken = patternTokens[patternPos];
+        
+        if (currentToken.hasPlus) {
+            // Handle + quantifier (one or more)
+            // First, we must match at least once
+            if (inputPos >= input.length() || !matchesToken(input.charAt(inputPos), currentToken.token)) {
+                return false; // Must match at least once
+            }
+            
+            // Try matching as many times as possible (greedy)
+            for (int matchCount = 1; inputPos + matchCount <= input.length(); matchCount++) {
+                // Check if we can still match this character
+                if (inputPos + matchCount > input.length() || 
+                    !matchesToken(input.charAt(inputPos + matchCount - 1), currentToken.token)) {
+                    // Can't match more, try with current count
+                    if (matchTokensAtPosition(input, inputPos + matchCount - 1, patternTokens, patternPos + 1, requiredEndPos)) {
+                        return true;
+                    }
+                    break;
+                }
+                
+                // Try matching the rest of the pattern after consuming this many characters
+                if (matchTokensAtPosition(input, inputPos + matchCount, patternTokens, patternPos + 1, requiredEndPos)) {
+                    return true;
+                }
+            }
+            
+            return false;
+        } else {
+            // Regular token (no quantifier)
+            if (inputPos >= input.length() || !matchesToken(input.charAt(inputPos), currentToken.token)) {
+                return false;
+            }
+            
+            return matchTokensAtPosition(input, inputPos + 1, patternTokens, patternPos + 1, requiredEndPos);
+        }
     }
 }
