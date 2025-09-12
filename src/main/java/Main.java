@@ -92,10 +92,19 @@ public class Main {
                 return false;
             }
         }
-        if(tokens[tokens.length - 1].equals("$") && input.length() != tokens.length - 1) {
+        
+        return true;
+    }
+    if (tokens.length > 0 && tokens[tokens.length - 1].equals("$")) {
+        int patternLen = tokens.length - 1;
+        if (input.length() < patternLen) {
             return false;
         }
-        
+        for(int i=0;i<patternLen;i++) {
+            if(!matchesToken(input.charAt(input.length()-patternLen+i),tokens[i])) {
+                return false;
+            }
+        }
         return true;
     }
         // Try matching at every position in the input
